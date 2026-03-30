@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Code Generation — Step by Step</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Georgia,'Times New Roman',serif;background:#f0f2f5;color:#1a1a2e;line-height:1.6}
+header{background:#0d1b2a;color:#e8f4fd;padding:28px 40px;border-bottom:4px solid #1a6b9a}
+header h1{font-size:2rem;font-weight:700;letter-spacing:1px}
+header p{margin-top:6px;font-size:0.95rem;opacity:0.8;font-style:italic}
+.main{max-width:960px;margin:0 auto;padding:30px 20px}
+.input-card{background:#fff;border-radius:10px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.1);margin-bottom:28px}
+.input-card h2{font-size:1.25rem;color:#0d1b2a;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid #e0e8f0}
+.form-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{font-size:0.85rem;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:0.5px}
+.form-group input[type=text]{padding:10px 14px;border:2px solid #ccd6e0;border-radius:6px;font-size:1rem;width:340px;font-family:monospace;transition:border-color 0.2s}
+.form-group input[type=text]:focus{outline:none;border-color:#1a6b9a}
+.form-group select{padding:10px 14px;border:2px solid #ccd6e0;border-radius:6px;font-size:1rem;background:#fff;cursor:pointer}
+.btn-generate{padding:11px 28px;background:#1a6b9a;color:#fff;border:none;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;transition:background 0.2s;white-space:nowrap}
+.btn-generate:hover{background:#145a82}
+.step-card{background:#fff;border-radius:10px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.1);margin-bottom:22px}
+.step-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #e0e8f0}
+.step-badge{background:#0d1b2a;color:#e8f4fd;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0}
+.step-title{font-size:1.2rem;font-weight:700;color:#0d1b2a}
+.step-subtitle{font-size:0.9rem;color:#666;font-style:italic}
+.step-body{font-size:0.95rem}
+.step-body p{margin-bottom:12px}
+.step-body h3{margin:18px 0 8px;font-size:1rem;color:#0d1b2a}
+/* Bit string color coding */
+.bit-mode{color:#2563eb;font-weight:700}
+.bit-count{color:#16a34a;font-weight:700}
+.bit-data{color:#ea580c;font-weight:700}
+.bit-term{color:#9333ea;font-weight:700}
+.bit-pad{color:#6b7280;font-weight:700}
+.mono{font-family:'Courier New',monospace;font-size:0.88rem;background:#f8fafc;padding:2px 5px;border-radius:3px}
+pre.code-block{background:#1e293b;color:#e2e8f0;padding:16px;border-radius:8px;font-size:0.82rem;overflow-x:auto;line-height:1.6;white-space:pre-wrap;word-break:break-all}
+table.data-table{border-collapse:collapse;width:100%;margin:14px 0;font-size:0.88rem}
+table.data-table th{background:#e8f0f7;padding:8px 12px;text-align:left;border:1px solid #ccd6e0;font-weight:700}
+table.data-table td{padding:7px 12px;border:1px solid #ccd6e0}
+table.data-table tr:nth-child(even) td{background:#f5f8fb}
+table.data-table tr.highlight td{background:#fff3cd;font-weight:700}
+.qr-table-wrap{overflow:auto;margin:16px 0}
+table.qr-matrix{border-collapse:collapse;border-spacing:0;line-height:0;display:inline-table}
+table.qr-matrix td{width:8px;height:8px;padding:0;border:none}
+.qm-dark{background:#000}
+.qm-light{background:#fff}
+.qm-gray{background:#ccc}
+.qm-dkgray{background:#888}
+.qm-data-unset{background:#e8f0ff}
+.qm-numbered{background:#c0e0ff;font-size:5px;color:#003;text-align:center;line-height:8px}
+/* Penalty bar chart */
+.penalty-bars{margin:14px 0}
+.penalty-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:0.85rem}
+.penalty-label{width:80px;font-family:monospace}
+.penalty-bar-bg{flex:1;height:18px;background:#e5e7eb;border-radius:4px;overflow:hidden}
+.penalty-bar-fill{height:100%;background:#1a6b9a;border-radius:4px;transition:width 0.3s}
+.penalty-bar-fill.winner{background:#16a34a}
+.penalty-val{width:60px;text-align:right;font-family:monospace;font-weight:700}
+.mask-grid{display:flex;flex-wrap:wrap;gap:12px;margin:14px 0}
+.mask-item{background:#f8fafc;border:2px solid #e0e8f0;border-radius:8px;padding:10px;text-align:center;font-size:0.78rem}
+.mask-item.winner-mask{border-color:#16a34a;background:#f0fdf4}
+.mask-item p{margin-top:6px;font-weight:700}
+table.qr-small{border-collapse:collapse;border-spacing:0;line-height:0;display:inline-table}
+table.qr-small td{width:4px;height:4px;padding:0;border:none}
+.info-box{background:#eff6ff;border-left:4px solid #2563eb;padding:12px 16px;border-radius:0 6px 6px 0;margin:12px 0;font-size:0.9rem}
+.warn-box{background:#fff7ed;border-left:4px solid #ea580c;padding:12px 16px;border-radius:0 6px 6px 0;margin:12px 0;font-size:0.9rem}
+.ok-box{background:#f0fdf4;border-left:4px solid #16a34a;padding:12px 16px;border-radius:0 6px 6px 0;margin:12px 0;font-size:0.9rem}
+.char-table{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.char-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-family:monospace;font-size:0.85rem;font-weight:700}
+.chip-numeric{background:#dcfce7;color:#166534}
+.chip-alpha{background:#dbeafe;color:#1e3a8a}
+.chip-byte{background:#fee2e2;color:#991b1b}
+.step-divider{border:none;border-top:2px dashed #c8d8e8;margin:32px 0}
+.quiet-zone td{background:#fff}
+.print-section{margin-top:28px;padding-top:22px;border-top:2px dashed #c8d8e8}
+.print-params{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+.param-box{background:#f8fafc;border:1px solid #ccd6e0;border-radius:6px;padding:10px 16px;font-size:0.88rem}
+.param-box strong{display:block;font-size:0.78rem;text-transform:uppercase;color:#666;margin-bottom:3px}
+.btn-stl{display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:12px 28px;background:#0d1b2a;color:#e8f4fd;border:none;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;transition:background 0.2s}
+.btn-stl:hover{background:#1a3a55}
+.print-steps{counter-reset:pstep;list-style:none;margin:12px 0;padding:0}
+.print-steps li{counter-increment:pstep;margin-bottom:10px;font-size:0.9rem;padding-left:36px;position:relative}
+.print-steps li::before{content:counter(pstep);background:#0d1b2a;color:#fff;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;position:absolute;left:0;top:1px}
+</style>
+</head>
+<body>
+<header>
+  <h1>QR Code Generation — Step by Step</h1>
+  <p>An interactive educational tool demonstrating the complete QR code encoding algorithm</p>
+</header>
+<div class="main">
+  <div class="input-card">
+    <h2>Input</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Text (max 50 chars)</label>
+        <input type="text" id="qr-input" value="HELLO WORLD" maxlength="50" placeholder="Enter text...">
+      </div>
+      <div class="form-group">
+        <label>Error Correction</label>
+        <select id="ec-level">
+          <option value="M" selected>M — Medium (~15%)</option>
+          <option value="L">L — Low (~7%)</option>
+          <option value="Q">Q — Quartile (~25%)</option>
+          <option value="H">H — High (~30%)</option>
+        </select>
+      </div>
+      <button class="btn-generate" onclick="startGeneration()">Generate QR Code</button>
+    </div>
+    <div id="input-warn" style="margin-top:10px"></div>
+  </div>
+  <div id="top-qr"></div>
+  <div id="steps-container"></div>
+</div>
+
+<script>
+'use strict';
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+// ============================================================
+// GF(256) ARITHMETIC
+// ============================================================
+const GF_EXP = new Array(512);
+const GF_LOG = new Array(256);
+(function(){
+  let x = 1;
+  for(let i=0;i<255;i++){
+    GF_EXP[i]=x; GF_LOG[x]=i;
+    x=x<<1; if(x&0x100) x^=285;
+  }
+  for(let i=255;i<512;i++) GF_EXP[i]=GF_EXP[i-255];
+  GF_LOG[0]=-Infinity;
+})();
+
+function gf_mul(a,b){
+  if(a===0||b===0) return 0;
+  return GF_EXP[(GF_LOG[a]+GF_LOG[b])%255];
+}
+function gf_div(a,b){
+  if(b===0) throw new Error("GF div by zero");
+  if(a===0) return 0;
+  return GF_EXP[((GF_LOG[a]-GF_LOG[b])%255+255)%255];
+}
+function gf_pow(a,n){ return GF_EXP[(GF_LOG[a]*n)%255]; }
+
+// polynomial: array of coefficients, index = degree (poly[0]=coeff of x^0)
+function gf_poly_mul(p,q){
+  const r=new Array(p.length+q.length-1).fill(0);
+  for(let i=0;i<p.length;i++)
+    for(let j=0;j<q.length;j++)
+      r[i+j]^=gf_mul(p[i],q[j]);
+  return r;
+}
+function gf_poly_div(dividend, divisor){
+  let rem=[...dividend];
+  for(let i=rem.length-1;i>=divisor.length-1;i--){
+    const coef=rem[i];
+    if(coef===0) continue;
+    for(let j=0;j<divisor.length;j++){
+      rem[i-(divisor.length-1-j)]^=gf_mul(divisor[j],coef);
+    }
+  }
+  return rem.slice(0,divisor.length-1);
+}
+
+// makeGeneratorPoly defined later in RS section (descending order)
+
+// ============================================================
+// QR SPEC DATA
+// ============================================================
+const EC_LEVEL_BITS = {L:0b01, M:0b00, Q:0b11, H:0b10};
+
+// [ecPerBlock, numBlocks1, dataCW1, numBlocks2, dataCW2]
+const QR_BLOCKS = {
+  '1L':[7,1,19,0,0],'1M':[10,1,16,0,0],'1Q':[13,1,13,0,0],'1H':[17,1,9,0,0],
+  '2L':[10,1,34,0,0],'2M':[16,1,28,0,0],'2Q':[22,1,22,0,0],'2H':[28,1,16,0,0],
+  '3L':[15,1,55,0,0],'3M':[26,1,44,0,0],'3Q':[18,2,17,0,0],'3H':[22,2,13,0,0],
+  '4L':[20,1,80,0,0],'4M':[18,2,32,0,0],'4Q':[26,2,24,0,0],'4H':[16,4,9,0,0],
+  '5L':[26,1,108,0,0],'5M':[24,2,43,0,0],'5Q':[18,2,15,2,16],'5H':[22,2,11,2,12],
+  '6L':[18,2,68,0,0],'6M':[16,4,27,0,0],'6Q':[24,4,19,0,0],'6H':[28,4,15,0,0],
+  '7L':[20,2,78,0,0],'7M':[18,4,31,0,0],'7Q':[18,2,14,4,15],'7H':[26,4,13,1,14]
+};
+
+const DATA_CW = {
+  '1L':19,'1M':16,'1Q':13,'1H':9,
+  '2L':34,'2M':28,'2Q':22,'2H':16,
+  '3L':55,'3M':44,'3Q':34,'3H':26,
+  '4L':80,'4M':64,'4Q':48,'4H':36,
+  '5L':108,'5M':86,'5Q':62,'5H':46,
+  '6L':136,'6M':108,'6Q':76,'6H':60,
+  '7L':156,'7M':124,'7Q':88,'7H':66
+};
+
+const ALIGN_POS = {1:[],2:[6,18],3:[6,22],4:[6,26],5:[6,30],6:[6,34],7:[6,22,38]};
+
+// Char count bits per mode per version group
+// [versions 1-9, 10-26, 27-40]
+const COUNT_BITS = {
+  numeric:[10,12,14],
+  alphanumeric:[9,11,13],
+  byte:[8,16,16]
+};
+
+const ALPHA_CHARS='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
+
+// ============================================================
+// MODE DETECTION
+// ============================================================
+function detectMode(text){
+  let mode='numeric';
+  for(const c of text){
+    const code=c.charCodeAt(0);
+    if(ALPHA_CHARS.indexOf(c)<0) mode='byte';
+    else if(mode==='numeric' && '0123456789'.indexOf(c)<0) mode='alphanumeric';
+  }
+  return mode;
+}
+
+function charCategory(c){
+  if('0123456789'.indexOf(c)>=0) return 'numeric';
+  if(ALPHA_CHARS.indexOf(c)>=0) return 'alphanumeric';
+  return 'byte';
+}
+
+function modeIndicator(mode){
+  return {numeric:'0001',alphanumeric:'0010',byte:'0100'}[mode];
+}
+
+// ============================================================
+// ENCODING
+// ============================================================
+function toBin(n,bits){
+  return n.toString(2).padStart(bits,'0');
+}
+
+function encodeData(text,mode){
+  let bits='';
+  const parts=[]; // [{desc,bits}]
+  if(mode==='numeric'){
+    for(let i=0;i<text.length;i+=3){
+      const grp=text.slice(i,i+3);
+      const val=parseInt(grp,10);
+      const b=grp.length===3?10:grp.length===2?7:4;
+      const bs=toBin(val,b);
+      parts.push({desc:`"${escapeHtml(grp)}" → ${val}`,bits:bs});
+      bits+=bs;
+    }
+  } else if(mode==='alphanumeric'){
+    for(let i=0;i<text.length;i+=2){
+      if(i+1<text.length){
+        const v1=ALPHA_CHARS.indexOf(text[i]);
+        const v2=ALPHA_CHARS.indexOf(text[i+1]);
+        const val=v1*45+v2;
+        const bs=toBin(val,11);
+        parts.push({desc:`"${escapeHtml(text[i])}"(${v1})×45+"${escapeHtml(text[i+1])}"(${v2})=${val}`,bits:bs});
+        bits+=bs;
+      } else {
+        const v=ALPHA_CHARS.indexOf(text[i]);
+        const bs=toBin(v,6);
+        parts.push({desc:`"${escapeHtml(text[i])}"(${v}) single`,bits:bs});
+        bits+=bs;
+      }
+    }
+  } else { // byte
+    for(const c of text){
+      const v=c.charCodeAt(0);
+      const bs=toBin(v,8);
+      parts.push({desc:`'${escapeHtml(c)}' = 0x${v.toString(16).toUpperCase().padStart(2,'0')}`,bits:bs});
+      bits+=bs;
+    }
+  }
+  return {bits,parts};
+}
+
+function getCountBits(mode,version){
+  const grp=version<=9?0:version<=26?1:2;
+  return COUNT_BITS[mode][grp];
+}
+
+// ============================================================
+// VERSION SELECTION
+// ============================================================
+function selectVersion(text,mode,ec){
+  for(let v=1;v<=7;v++){
+    const key=v+ec;
+    const capacity=DATA_CW[key];
+    const countBits=getCountBits(mode,v);
+    const enc=encodeData(text,mode);
+    const totalBits=4+countBits+enc.bits.length;
+    const totalBytes=Math.ceil(totalBits/8);
+    if(totalBytes<=capacity) return v;
+  }
+  return -1;
+}
+
+// ============================================================
+// FULL BIT STRING & CODEWORDS
+// ============================================================
+function buildCodewords(text,mode,version,ec){
+  const cap=DATA_CW[version+ec];
+  const countBits=getCountBits(mode,version);
+  const enc=encodeData(text,mode);
+  const modeBits=modeIndicator(mode);
+  const cntBits=toBin(text.length,countBits);
+  let bits=modeBits+cntBits+enc.bits;
+  // terminator
+  const remaining=cap*8-bits.length;
+  const termLen=Math.min(4,remaining);
+  bits+='0'.repeat(termLen);
+  // pad to byte boundary
+  while(bits.length%8!==0) bits+='0';
+  // pad bytes
+  const pads=['11101100','00010001'];
+  let pi=0;
+  while(bits.length<cap*8){ bits+=pads[pi%2]; pi++; }
+  // to codewords
+  const cws=[];
+  for(let i=0;i<bits.length;i+=8)
+    cws.push(parseInt(bits.slice(i,i+8),2));
+  return {bits,cws,modeBits,cntBits,encParts:enc.parts,encBits:enc.bits};
+}
+
+// ============================================================
+// REED-SOLOMON
+// ============================================================
+// Generator polynomial in DESCENDING degree order:
+// g[0] = coefficient of x^n (always 1), g[n] = constant term
+// Built as product of (x + alpha^i) for i = 0..n-1
+function makeGeneratorPoly(n){
+  let g=[1];
+  for(let i=0;i<n;i++){
+    const newg=new Array(g.length+1).fill(0);
+    for(let j=0;j<g.length;j++){
+      newg[j]^=g[j];
+      newg[j+1]^=gf_mul(g[j],GF_EXP[i]);
+    }
+    g=newg;
+  }
+  return g;
+}
+
+// Compute RS error correction codewords using polynomial long division.
+// gen[] is descending: gen[0]=leading coeff (1), gen[ecCount]=constant.
+// We divide data(x)*x^ecCount by gen(x), remainder = EC codewords.
+function rsEC(data, ecCount){
+  const gen=makeGeneratorPoly(ecCount);
+  // Work on data padded with ecCount zeros (the x^ecCount multiplication)
+  let rem=new Array(data.length+ecCount).fill(0);
+  for(let i=0;i<data.length;i++) rem[i]=data[i];
+  for(let i=0;i<data.length;i++){
+    const lead=rem[i];
+    if(lead===0) continue;
+    for(let j=0;j<gen.length;j++){
+      rem[i+j]^=gf_mul(gen[j],lead);
+    }
+  }
+  return rem.slice(data.length);
+}
+
+// ============================================================
+// BLOCK INTERLEAVING
+// ============================================================
+function interleaveBlocks(dataCWs,version,ec){
+  const key=version+ec;
+  const [ecPB,nb1,dCW1,nb2,dCW2]=QR_BLOCKS[key];
+  const blocks=[];
+  let offset=0;
+  for(let b=0;b<nb1;b++){
+    blocks.push({data:dataCWs.slice(offset,offset+dCW1),ec:[]});
+    offset+=dCW1;
+  }
+  for(let b=0;b<nb2;b++){
+    blocks.push({data:dataCWs.slice(offset,offset+dCW2),ec:[]});
+    offset+=dCW2;
+  }
+  for(const blk of blocks) blk.ec=rsEC(blk.data,ecPB);
+  // interleave data
+  const out=[];
+  const maxLen=Math.max(...blocks.map(b=>b.data.length));
+  for(let i=0;i<maxLen;i++)
+    for(const blk of blocks)
+      if(i<blk.data.length) out.push(blk.data[i]);
+  for(let i=0;i<ecPB;i++)
+    for(const blk of blocks)
+      out.push(blk.ec[i]);
+  return {blocks,finalCW:out};
+}
+
+// ============================================================
+// QR MATRIX CONSTRUCTION
+// ============================================================
+function makeMatrix(version){
+  const size=4*version+17;
+  const m=[];
+  for(let r=0;r<size;r++){
+    m.push(new Array(size).fill(null)); // null=data area
+  }
+  return m;
+}
+
+function cloneMatrix(m){ return m.map(r=>[...r]); }
+
+// 0=light,1=dark, null=data area
+function placeFinderPattern(m,row,col){
+  // 7x7 finder: outer ring dark, inner ring light, 3x3 dark center
+  for(let r=0;r<7;r++){
+    for(let c=0;c<7;c++){
+      const isOuter=r===0||r===6||c===0||c===6;
+      const isInner=r>=2&&r<=4&&c>=2&&c<=4;
+      m[row+r][col+c]=isOuter||isInner?1:0;
+    }
+  }
+}
+
+function placeFinderPatterns(m,version){
+  const size=4*version+17;
+  placeFinderPattern(m,0,0);   // top-left
+  placeFinderPattern(m,0,size-7); // top-right
+  placeFinderPattern(m,size-7,0); // bottom-left
+  // Separators
+  for(let i=0;i<8;i++){
+    m[7][i]=0; m[i][7]=0;           // top-left
+    m[7][size-1-i]=0; m[i][size-8]=0; // top-right
+    m[size-8][i]=0; m[size-1-i][7]=0; // bottom-left
+  }
+}
+
+function placeTimingPatterns(m,version){
+  const size=4*version+17;
+  for(let i=8;i<size-8;i++){
+    m[6][i]=(i%2===0)?1:0;
+    m[i][6]=(i%2===0)?1:0;
+  }
+}
+
+function placeAlignmentPatterns(m,version){
+  const pos=ALIGN_POS[version];
+  if(!pos||pos.length===0) return;
+  for(let r=0;r<pos.length;r++){
+    for(let c=0;c<pos.length;c++){
+      const row=pos[r],col=pos[c];
+      if(m[row][col]!==null) continue; // already occupied
+      // 5x5 alignment: dark border, light ring, dark center
+      for(let dr=-2;dr<=2;dr++){
+        for(let dc=-2;dc<=2;dc++){
+          const isOuter=Math.abs(dr)===2||Math.abs(dc)===2;
+          const isCenter=dr===0&&dc===0;
+          m[row+dr][col+dc]=(isOuter||isCenter)?1:0;
+        }
+      }
+    }
+  }
+}
+
+function reserveFormatAreas(m,version){
+  const size=4*version+17;
+  // Format info around top-left finder
+  for(let i=0;i<8;i++){
+    if(m[8][i]===null) m[8][i]=-1; // reserved
+    if(m[i][8]===null) m[i][8]=-1;
+  }
+  m[8][8]=-1;
+  // Top-right format
+  for(let i=size-8;i<size;i++) if(m[8][i]===null) m[8][i]=-1;
+  // Bottom-left format
+  for(let i=size-7;i<size;i++) if(m[i][8]===null) m[i][8]=-1;
+  // Dark module
+  m[4*version+9][8]=1;
+}
+
+function buildSkeleton(version){
+  const m=makeMatrix(version);
+  placeFinderPatterns(m,version);
+  placeTimingPatterns(m,version);
+  placeAlignmentPatterns(m,version);
+  reserveFormatAreas(m,version);
+  return m;
+}
+
+// ============================================================
+// DATA PLACEMENT (ZIGZAG)
+// ============================================================
+function getDataModules(m,version){
+  const size=4*version+17;
+  const modules=[];
+  let up=true;
+  let col=size-1;
+  while(col>0){
+    if(col===6) col--; // skip timing column
+    for(let row=up?size-1:0;up?row>=0:row<size;up?row--:row++){
+      for(let dc=0;dc<2;dc++){
+        const c=col-dc;
+        if(m[row][c]===null) modules.push([row,c]);
+      }
+    }
+    col-=2;
+    up=!up;
+  }
+  return modules;
+}
+
+function placeData(m,version,finalCW){
+  const modules=getDataModules(m,version);
+  // Convert codewords to bit string
+  let bits='';
+  for(const cw of finalCW) bits+=toBin(cw,8);
+  const mat=cloneMatrix(m);
+  for(let i=0;i<modules.length;i++){
+    const [r,c]=modules[i];
+    mat[r][c]=i<bits.length?parseInt(bits[i]):0;
+  }
+  return mat;
+}
+
+// ============================================================
+// MASKING
+// ============================================================
+const MASK_FNS=[
+  (r,c)=>(r+c)%2===0,
+  (r,c)=>r%2===0,
+  (r,c)=>c%3===0,
+  (r,c)=>(r+c)%3===0,
+  (r,c)=>(Math.floor(r/2)+Math.floor(c/3))%2===0,
+  (r,c)=>((r*c)%2+(r*c)%3)===0,
+  (r,c)=>((r*c)%2+(r*c)%3)%2===0,
+  (r,c)=>((r+c)%2+(r*c)%3)%2===0
+];
+
+const MASK_FORMULAS=[
+  '(r+c) % 2 = 0',
+  'r % 2 = 0',
+  'c % 3 = 0',
+  '(r+c) % 3 = 0',
+  '(⌊r/2⌋+⌊c/3⌋) % 2 = 0',
+  '(r·c)%2 + (r·c)%3 = 0',
+  '((r·c)%2 + (r·c)%3) % 2 = 0',
+  '((r+c)%2 + (r·c)%3) % 2 = 0'
+];
+
+function applyMask(skeleton,m,maskIdx,version){
+  const size=4*version+17;
+  const fn=MASK_FNS[maskIdx];
+  const mat=cloneMatrix(m);
+  for(let r=0;r<size;r++){
+    for(let c=0;c<size;c++){
+      // Only mask data modules — identified as null in the pre-data skeleton
+      if(skeleton[r][c]===null){
+        if(fn(r,c)) mat[r][c]^=1;
+      }
+    }
+  }
+  return mat;
+}
+
+function isDataModule(skeleton,r,c){
+  return skeleton[r][c]===null;
+}
+
+// ============================================================
+// FORMAT INFORMATION
+// ============================================================
+function calcFormatInfo(ecLevel,maskIdx){
+  const ecBits=EC_LEVEL_BITS[ecLevel];
+  const data=(ecBits<<3)|maskIdx;
+  // BCH error correction
+  let b=data<<10;
+  // generator: 10100110111 = 0x537
+  const gen=0x537;
+  for(let i=14;i>=10;i--){
+    if(b&(1<<i)) b^=(gen<<(i-10));
+  }
+  const format=(data<<10)|b;
+  return (format^0x5412)&0x7FFF;
+}
+
+function placeFormatInfo(m,version,formatInfo){
+  const size=4*version+17;
+  const bits=toBin(formatInfo,15);
+  // bits[0]=F14(MSB), bits[14]=F0(LSB)
+  // Top-left horizontal: row 8, cols 0,1,2,3,4,5,7,8 → F0..F7
+  const hPos=[0,1,2,3,4,5,7,8];
+  for(let i=0;i<8;i++) m[8][hPos[i]]=parseInt(bits[14-i]);
+  // Top-left vertical: col 8, rows 0,1,2,3,4,5,7,8 → F14..F7
+  const vRows=[0,1,2,3,4,5,7,8];
+  for(let i=0;i<8;i++) m[vRows[i]][8]=parseInt(bits[i]);
+  // Top-right: row 8, cols size-8..size-1 → F7..F0 (left to right)
+  for(let i=0;i<8;i++) m[8][size-8+i]=parseInt(bits[7+i]);
+  // Bottom-left: col 8, rows size-7..size-1 → F8..F14 (top to bottom)
+  for(let i=0;i<7;i++) m[size-7+i][8]=parseInt(bits[6-i]);
+}
+
+// ============================================================
+// PENALTY SCORING
+// ============================================================
+function penaltyScore(m,version){
+  const size=4*version+17;
+  let p1=0,p2=0,p3=0,p4=0;
+
+  // Rule 1: 5+ consecutive same-color in row/col
+  for(let r=0;r<size;r++){
+    let runR=1,runC=1;
+    for(let c=1;c<size;c++){
+      if(m[r][c]===m[r][c-1]&&m[r][c]!==null&&m[r][c]!==-1) runR++;
+      else { if(runR>=5)p1+=3+(runR-5); runR=1; }
+      if(m[c][r]===m[c-1][r]&&m[c][r]!==null&&m[c][r]!==-1) runC++;
+      else { if(runC>=5)p1+=3+(runC-5); runC=1; }
+    }
+    if(runR>=5)p1+=3+(runR-5);
+    if(runC>=5)p1+=3+(runC-5);
+  }
+
+  // Rule 2: 2x2 same-color blocks
+  for(let r=0;r<size-1;r++){
+    for(let c=0;c<size-1;c++){
+      const v=m[r][c];
+      if(v!==null&&v!==-1&&v===m[r][c+1]&&v===m[r+1][c]&&v===m[r+1][c+1]) p2+=3;
+    }
+  }
+
+  // Rule 3: finder-like patterns
+  const pat1=[1,0,1,1,1,0,1,0,0,0,0];
+  const pat2=[0,0,0,0,1,0,1,1,1,0,1];
+  for(let r=0;r<size;r++){
+    for(let c=0;c<size-10;c++){
+      let m1=true,m2=true;
+      for(let k=0;k<11;k++){
+        const v=m[r][c+k];
+        if(v!==pat1[k])m1=false;
+        if(v!==pat2[k])m2=false;
+      }
+      if(m1)p3+=40;
+      if(m2)p3+=40;
+      // vertical
+      let mv1=true,mv2=true;
+      for(let k=0;k<11;k++){
+        const v=m[c+k]?m[c+k][r]:null;
+        if(v!==pat1[k])mv1=false;
+        if(v!==pat2[k])mv2=false;
+      }
+      if(mv1)p3+=40;
+      if(mv2)p3+=40;
+    }
+  }
+
+  // Rule 4: dark/light ratio
+  let dark=0,total=0;
+  for(let r=0;r<size;r++)
+    for(let c=0;c<size;c++){
+      if(m[r][c]!==null&&m[r][c]!==-1){ total++; if(m[r][c]===1)dark++; }
+    }
+  const ratio=dark/total*100;
+  const prev=Math.floor(ratio/5)*5;
+  const next=prev+5;
+  p4=Math.min(Math.abs(prev-50)/5,Math.abs(next-50)/5)*10;
+
+  return {p1,p2,p3,p4,total:p1+p2+p3+p4};
+}
+
+// ============================================================
+// MAIN GENERATION PIPELINE
+// ============================================================
+let STATE = {};
+
+function startGeneration(){
+  const text=document.getElementById('qr-input').value;
+  const ec=document.getElementById('ec-level').value;
+  const warnEl=document.getElementById('input-warn');
+  warnEl.innerHTML='';
+
+  if(text.length===0){
+    warnEl.innerHTML='<div class="warn-box">Please enter some text.</div>';
+    return;
+  }
+  if(text.length>50){
+    warnEl.innerHTML='<div class="warn-box">Input truncated to 50 characters.</div>';
+  }
+  const inputText=text.slice(0,50);
+  const mode=detectMode(inputText);
+  const version=selectVersion(inputText,mode,ec);
+  if(version<0){
+    warnEl.innerHTML='<div class="warn-box">Text too long for versions 1-7. Please shorten.</div>';
+    return;
+  }
+
+  // Build everything
+  const {bits,cws,modeBits,cntBits,encParts,encBits}=buildCodewords(inputText,mode,version,ec);
+  const {blocks,finalCW}=interleaveBlocks(cws,version,ec);
+  const skeleton=buildSkeleton(version);
+  const withData=placeData(skeleton,version,finalCW);
+
+  // Find best mask
+  let bestMask=0,bestPenalty=Infinity;
+  const maskMatrices=[];
+  const penalties=[];
+  for(let mi=0;mi<8;mi++){
+    const masked=applyMask(skeleton,withData,mi,version);
+    // Apply format info temporarily for penalty
+    const fmt=calcFormatInfo(ec,mi);
+    const withFmt=cloneMatrix(masked);
+    placeFormatInfo(withFmt,version,fmt);
+    const pen=penaltyScore(withFmt,version);
+    maskMatrices.push(withFmt);
+    penalties.push(pen);
+    if(pen.total<bestPenalty){ bestPenalty=pen.total; bestMask=mi; }
+  }
+
+  const finalMatrix=maskMatrices[bestMask];
+
+  STATE={
+    text:inputText, ec, mode, version,
+    bits, cws, modeBits, cntBits, encParts, encBits,
+    blocks, finalCW,
+    skeleton, withData,
+    maskMatrices, penalties, bestMask,
+    finalMatrix,
+    currentStep:0
+  };
+
+  renderAllSteps();
+}
+
+// ============================================================
+// RENDERING HELPERS
+// ============================================================
+function renderMatrix(mat,version,small=false,showNumbers=false,highlightModules=null){
+  const size=4*version+17;
+  const cellClass=small?'qr-small':'qr-matrix';
+  let html=`<table class="${cellClass}">`;
+  for(let r=0;r<size;r++){
+    html+='<tr>';
+    for(let c=0;c<size;c++){
+      const v=mat[r][c];
+      let cls;
+      if(v===1) cls='qm-dark';
+      else if(v===0) cls='qm-light';
+      else if(v===-1) cls='qm-gray';
+      else cls='qm-data-unset';
+      if(highlightModules&&highlightModules[r]&&highlightModules[r][c]!==undefined){
+        const idx=highlightModules[r][c];
+        html+=`<td class="${cls}" title="[${r},${c}] bit ${idx}"></td>`;
+      } else {
+        html+=`<td class="${cls}"></td>`;
+      }
+    }
+    html+='</tr>';
+  }
+  html+='</table>';
+  return html;
+}
+
+function renderFinalMatrix(mat,version){
+  const size=4*version+17;
+  const quietZone=4;
+  const totalSize=size+quietZone*2;
+  let html='<table class="qr-matrix" style="border:8px solid #fff;background:#fff">';
+  // Quiet zone top
+  for(let q=0;q<quietZone;q++){
+    html+='<tr>';
+    for(let c=0;c<totalSize;c++) html+='<td class="qm-light"></td>';
+    html+='</tr>';
+  }
+  for(let r=0;r<size;r++){
+    html+='<tr>';
+    for(let q=0;q<quietZone;q++) html+='<td class="qm-light"></td>';
+    for(let c=0;c<size;c++){
+      const v=mat[r][c];
+      html+=`<td class="${v===1?'qm-dark':'qm-light'}"></td>`;
+    }
+    for(let q=0;q<quietZone;q++) html+='<td class="qm-light"></td>';
+    html+='</tr>';
+  }
+  for(let q=0;q<quietZone;q++){
+    html+='<tr>';
+    for(let c=0;c<totalSize;c++) html+='<td class="qm-light"></td>';
+    html+='</tr>';
+  }
+  html+='</table>';
+  return html;
+}
+
+function bitSpan(bits,cls){
+  return `<span class="${cls}">${bits}</span>`;
+}
+
+// ============================================================
+// STEP RENDERERS
+// ============================================================
+function renderStep1(){
+  const {text,mode}=STATE;
+  const modeNames={numeric:'Numeric',alphanumeric:'Alphanumeric',byte:'Byte'};
+  const chipClass={numeric:'chip-numeric',alphanumeric:'chip-alpha',byte:'chip-byte'};
+
+  let charAnalysis='<div class="char-table">';
+  for(const c of text){
+    const cat=charCategory(c);
+    const disp=c===' '?'␣':escapeHtml(c);
+    charAnalysis+=`<span class="char-chip ${chipClass[cat]}" title="${cat}">${disp}</span>`;
+  }
+  charAnalysis+='</div>';
+
+  let modeTable='<table class="data-table"><thead><tr><th>Mode</th><th>Characters Supported</th><th>Bits/Char</th><th>Indicator</th><th>Fits?</th></tr></thead><tbody>';
+  const modesInfo=[
+    {name:'Numeric',chars:'0–9',bpc:'3.33',ind:'0001',test:'numeric'},
+    {name:'Alphanumeric',chars:'0–9, A–Z, space, $%*+-./:', bpc:'5.5',ind:'0010',test:'alphanumeric'},
+    {name:'Byte',chars:'Any ISO-8859-1 (0–255)',bpc:'8',ind:'0100',test:'byte'}
+  ];
+  const modeOrder=['numeric','alphanumeric','byte'];
+  const selectedIdx=modeOrder.indexOf(mode);
+  for(let i=0;i<modesInfo.length;i++){
+    const info=modesInfo[i];
+    const fits=i>=selectedIdx;
+    const isSelected=info.test===mode;
+    modeTable+=`<tr class="${isSelected?'highlight':''}">
+      <td><strong>${info.name}</strong>${isSelected?' ← SELECTED':''}</td>
+      <td style="font-size:0.82rem">${info.chars}</td>
+      <td>${info.bpc}</td>
+      <td class="mono">${info.ind}</td>
+      <td>${fits?'✓':'✗'}</td></tr>`;
+  }
+  modeTable+='</tbody></table>';
+
+  const modeExp={
+    numeric:`All characters are digits 0–9. Most efficient: encodes 3 digits in 10 bits.`,
+    alphanumeric:`All characters in {0–9, A–Z, space, $%*+-./:}. Encodes pairs in 11 bits.`,
+    byte:`At least one character falls outside alphanumeric set. Each character → 8 bits.`
+  }[mode];
+
+  return `
+    <p>The first step in QR encoding is determining which <strong>encoding mode</strong> to use. We analyze each character and select the most compact mode that can represent all characters.</p>
+    <h3>Character Analysis</h3>
+    ${charAnalysis}
+    <p style="font-size:0.85rem;color:#555;margin-top:6px">
+      <span class="char-chip chip-numeric">N</span> = Numeric &nbsp;
+      <span class="char-chip chip-alpha">A</span> = Alphanumeric &nbsp;
+      <span class="char-chip chip-byte">B</span> = Byte
+    </p>
+    <h3>Mode Selection</h3>
+    ${modeTable}
+    <div class="info-box">${modeExp} Selected mode: <strong>${modeNames[mode]}</strong> (indicator bits: <span class="mono bit-mode">${modeIndicator(mode)}</span>)</div>
+  `;
+}
+
+function renderStep2(){
+  const {text,mode,version,modeBits,cntBits,encParts,bits}=STATE;
+  const countBits=getCountBits(mode,version);
+
+  let encTable='<table class="data-table"><thead><tr><th>Group</th><th>Explanation</th><th>Bits</th></tr></thead><tbody>';
+  for(const p of encParts){
+    encTable+=`<tr><td class="mono">${p.desc}</td><td>→</td><td class="mono bit-data">${p.bits}</td></tr>`;
+  }
+  encTable+='</tbody></table>';
+
+  // Full bit string with color coding
+  const modePart=bitSpan(modeBits,'bit-mode mono');
+  const cntPart=bitSpan(cntBits,'bit-count mono');
+  const dataPart=bitSpan(STATE.encBits,'bit-data mono');
+
+  // Terminator + padding
+  const allBits=bits;
+  const dataEnd=4+countBits+STATE.encBits.length;
+  const termEnd=Math.min(dataEnd+4,allBits.length);
+  const termBits=allBits.slice(dataEnd,termEnd);
+  const paddBoundary=termEnd+((8-(termEnd%8))%8);
+  const alignPad=allBits.slice(termEnd,paddBoundary);
+  const padBytes=allBits.slice(paddBoundary);
+
+  const bitDisplay=modePart+' '+cntPart+' '+dataPart+
+    (termBits?' '+bitSpan(termBits,'bit-term mono'):'')+
+    (alignPad?' '+bitSpan(alignPad,'bit-pad mono'):'')+
+    (padBytes?' '+bitSpan(padBytes,'bit-pad mono'):'');
+
+  return `
+    <p>We convert the input into a binary bit stream. The stream starts with the <strong>mode indicator</strong>, followed by a <strong>character count</strong>, then the <strong>encoded data</strong>.</p>
+    <h3>Mode Indicator (4 bits)</h3>
+    <p>Mode = <strong>${mode}</strong> → <span class="mono bit-mode">${modeBits}</span></p>
+    <h3>Character Count (${countBits} bits for version ${version} / ${mode} mode)</h3>
+    <p>Length = ${text.length} → <span class="mono bit-count">${cntBits}</span></p>
+    <h3>Data Encoding</h3>
+    ${encTable}
+    <h3>Full Bit String</h3>
+    <p style="font-size:0.8rem;margin-bottom:6px">
+      <span class="bit-mode">■</span> Mode indicator &nbsp;
+      <span class="bit-count">■</span> Character count &nbsp;
+      <span class="bit-data">■</span> Data bits &nbsp;
+      <span class="bit-term">■</span> Terminator &nbsp;
+      <span class="bit-pad">■</span> Padding
+    </p>
+    <pre class="code-block" style="word-break:break-all;white-space:pre-wrap">${bitDisplay}</pre>
+    <p style="margin-top:8px">Total bits: <strong>${bits.length}</strong> (${bits.length/8} bytes)</p>
+  `;
+}
+
+function renderStep3(){
+  const {mode,ec,version}=STATE;
+  const ecNames={L:'Low (~7%)',M:'Medium (~15%)',Q:'Quartile (~25%)',H:'High (~30%)'};
+
+  let table='<table class="data-table"><thead><tr><th>Version</th><th>Size (modules)</th><th>Data CW ('
+    +ec+')</th><th>EC CW</th><th>Max chars</th><th>Selected?</th></tr></thead><tbody>';
+
+  for(let v=1;v<=7;v++){
+    const key=v+ec;
+    const cw=DATA_CW[key];
+    const [ecPB,nb1,d1,nb2,d2]=QR_BLOCKS[key];
+    const size=4*v+17;
+    // Rough max chars
+    const maxBits=cw*8-4-getCountBits(mode,v);
+    let maxChars;
+    if(mode==='numeric') maxChars=Math.floor(maxBits/10*3);
+    else if(mode==='alphanumeric') maxChars=Math.floor(maxBits/11*2);
+    else maxChars=Math.floor(maxBits/8);
+    const totalEC=(nb1*ecPB)+(nb2*ecPB);
+    const isSelected=v===version;
+    table+=`<tr class="${isSelected?'highlight':''}">
+      <td>${v}${isSelected?' ←':''}</td>
+      <td>${size}×${size}</td>
+      <td>${cw}</td>
+      <td>${totalEC}</td>
+      <td>~${maxChars}</td>
+      <td>${isSelected?'✓':''}</td></tr>`;
+  }
+  table+='</tbody></table>';
+
+  return `
+    <p>A QR code <strong>version</strong> determines its physical size. Each version adds 4 modules per side: Version 1 is 21×21, Version 7 is 45×45. We need the smallest version that can hold our encoded data.</p>
+    <h3>Version Capacity Table (EC Level: ${ec} — ${ecNames[ec]})</h3>
+    ${table}
+    <div class="ok-box">
+      Selected: <strong>Version ${version}</strong> (${4*version+17}×${4*version+17} modules)<br>
+      Data codewords available: <strong>${DATA_CW[version+ec]}</strong> &nbsp;|&nbsp;
+      Input requires: <strong>${Math.ceil(STATE.bits.length/8)}</strong> bytes
+    </div>
+    <p>The QR code size is always <strong>4 × version + 17</strong> modules per side. "Modules" are the individual black/white squares.</p>
+  `;
+}
+
+function renderStep4(){
+  const {cws,version,ec,bits}=STATE;
+  const cap=DATA_CW[version+ec];
+  const totalBits=cap*8;
+  const dataBitsLen=STATE.encBits.length+4+getCountBits(STATE.mode,version);
+  const termLen=Math.min(4,totalBits-dataBitsLen);
+  const afterTerm=dataBitsLen+termLen;
+  const alignPad=(8-(afterTerm%8))%8;
+  const padBytes=(totalBits-afterTerm-alignPad)/8;
+
+  let hexCW='';
+  for(let i=0;i<cws.length;i++){
+    if(i>0&&i%16===0) hexCW+='\n';
+    hexCW+=cws[i].toString(16).toUpperCase().padStart(2,'0')+' ';
+  }
+
+  const {blocks}=STATE;
+  let blockTable='';
+  if(blocks.length>1){
+    blockTable='<h3>Block Structure</h3><table class="data-table"><thead><tr><th>Block</th><th>Data CW</th><th>EC CW</th></tr></thead><tbody>';
+    for(let i=0;i<blocks.length;i++){
+      blockTable+=`<tr><td>Block ${i+1}</td><td>${blocks[i].data.length}</td><td>${blocks[i].ec.length}</td></tr>`;
+    }
+    blockTable+='</tbody></table>';
+  }
+
+  return `
+    <p>After encoding, we need to fill the data codeword capacity exactly. This involves adding a <strong>terminator</strong>, aligning to byte boundaries, and padding with special bytes.</p>
+    <h3>Padding Process</h3>
+    <table class="data-table"><tbody>
+      <tr><td>Data bits (incl. mode + count)</td><td class="mono">${dataBitsLen} bits</td></tr>
+      <tr><td>Terminator (up to 4 zero bits)</td><td class="mono">+ ${termLen} bits</td></tr>
+      <tr><td>Alignment padding (zeros)</td><td class="mono">+ ${alignPad} bits (to reach byte boundary)</td></tr>
+      <tr><td>Pad bytes (alternating 0xEC, 0x11)</td><td class="mono">+ ${padBytes} bytes</td></tr>
+      <tr class="highlight"><td><strong>Total capacity</strong></td><td class="mono"><strong>${cap} bytes = ${totalBits} bits</strong></td></tr>
+    </tbody></table>
+    <p>Pad bytes alternate: <span class="mono">11101100</span> (0xEC) and <span class="mono">00010001</span> (0x11). These are chosen because they are easily distinguished from data.</p>
+    <h3>Final Data Codewords (hex)</h3>
+    <pre class="code-block">${hexCW.trim()}</pre>
+    <p>Total: <strong>${cws.length} codewords</strong></p>
+    ${blockTable}
+  `;
+}
+
+function renderStep5(){
+  const {blocks,finalCW,version,ec}=STATE;
+  const [ecPB]=QR_BLOCKS[version+ec];
+  const gen=makeGeneratorPoly(ecPB);
+
+  // gen[] is descending: gen[0]=x^ecPB (coeff=1), gen[ecPB]=constant
+  let genStr='Generator polynomial for '+ecPB+' EC codewords:<br>';
+  genStr+='g(x) = ';
+  const genTerms=[];
+  for(let i=0;i<gen.length;i++){
+    const degree=ecPB-i;
+    const coeff=gen[i];
+    const logVal=(coeff===1)?0:(GF_LOG[coeff]||0);
+    if(degree===0) genTerms.push(`α<sup>${logVal}</sup>`);
+    else if(degree===1) genTerms.push(`α<sup>${logVal}</sup>x`);
+    else genTerms.push(`α<sup>${logVal}</sup>x<sup>${degree}</sup>`);
+  }
+  genStr+=genTerms.join(' + ');
+
+  // Show EC for first block — replicate rsEC steps for display
+  const b0=blocks[0];
+  let divSteps='<p>First few steps of polynomial long division (GF(256)):</p>';
+  divSteps+='<table class="data-table" style="font-size:0.8rem"><thead><tr><th>Step</th><th>Lead coeff</th><th>Remainder (first 6 bytes)</th></tr></thead><tbody>';
+  let rem=[...b0.data];
+  const maxShow=Math.min(5,b0.data.length);
+  for(let step=0;step<maxShow;step++){
+    const lead=rem[0];
+    rem=rem.slice(1).concat([0]);
+    if(lead!==0){
+      for(let j=0;j<ecPB;j++){
+        rem[j]^=gf_mul(gen[j+1],lead);
+      }
+    }
+    const logLead=(lead===0)?'∞':(GF_LOG[lead]||0);
+    divSteps+=`<tr><td>${step+1}</td><td>0x${lead.toString(16).toUpperCase().padStart(2,'0')} (α<sup>${logLead}</sup>)</td><td>${rem.slice(0,Math.min(6,rem.length)).map(v=>'0x'+v.toString(16).toUpperCase().padStart(2,'0')).join(' ')}&hellip;</td></tr>`;
+  }
+  divSteps+='</tbody></table>';
+
+  let ecTable='<table class="data-table"><thead><tr><th>Block</th><th>Data CW</th><th>EC Codewords (hex)</th></tr></thead><tbody>';
+  for(let i=0;i<blocks.length;i++){
+    ecTable+=`<tr><td>Block ${i+1}</td><td>${blocks[i].data.length}</td>
+      <td class="mono">${blocks[i].ec.map(v=>v.toString(16).toUpperCase().padStart(2,'0')).join(' ')}</td></tr>`;
+  }
+  ecTable+='</tbody></table>';
+
+  let finalHex='';
+  for(let i=0;i<finalCW.length;i++){
+    if(i>0&&i%16===0) finalHex+='\n';
+    finalHex+=finalCW[i].toString(16).toUpperCase().padStart(2,'0')+' ';
+  }
+
+  const multiBlock=blocks.length>1;
+
+  return `
+    <p><strong>Reed-Solomon error correction</strong> allows QR codes to be decoded even when partially damaged. It uses arithmetic over <em>Galois Field GF(256)</em>.</p>
+    <h3>GF(256) Arithmetic</h3>
+    <div class="info-box">
+      <strong>Addition</strong> = XOR (no carries!)<br>
+      <strong>Multiplication</strong>: using log/antilog tables with primitive polynomial x⁸+x⁴+x³+x²+1 (= 285 decimal)<br>
+      <strong>Powers of α</strong>: α⁰=1, α¹=2, α²=4, … α⁷=128, α⁸=29, …
+    </div>
+    <h3>Generator Polynomial</h3>
+    <p>${genStr}</p>
+    <h3>Division Process (Block 1, first ${maxShow} steps)</h3>
+    ${divSteps}
+    <h3>EC Codewords</h3>
+    ${ecTable}
+    ${multiBlock?`<div class="info-box">Multiple blocks are <strong>interleaved</strong>: data codewords from each block alternate, then EC codewords alternate. This spreads burst errors across blocks.</div>`:''}
+    <h3>Final Interleaved Codeword Sequence</h3>
+    <pre class="code-block">${finalHex.trim()}</pre>
+  `;
+}
+
+function renderStep6(){
+  const {version,skeleton}=STATE;
+  const size=4*version+17;
+
+  // Legend
+  const legend=`
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin:10px 0;font-size:0.82rem">
+      <span><span style="display:inline-block;width:14px;height:14px;background:#000;vertical-align:middle"></span> Dark module</span>
+      <span><span style="display:inline-block;width:14px;height:14px;background:#fff;border:1px solid #ccc;vertical-align:middle"></span> Light module</span>
+      <span><span style="display:inline-block;width:14px;height:14px;background:#ccc;vertical-align:middle"></span> Format info (reserved)</span>
+      <span><span style="display:inline-block;width:14px;height:14px;background:#e8f0ff;vertical-align:middle"></span> Data area</span>
+    </div>`;
+
+  return `
+    <p>Before placing data, we construct the QR code skeleton with <strong>functional patterns</strong> that help scanners locate, orient, and decode the code.</p>
+    <h3>Functional Patterns</h3>
+    <table class="data-table" style="font-size:0.85rem"><thead><tr><th>Pattern</th><th>Location</th><th>Purpose</th></tr></thead><tbody>
+      <tr><td><strong>Finder Patterns</strong></td><td>3 corners (TL, TR, BL)</td><td>Locate and orient the QR code; 7×7 with concentric squares</td></tr>
+      <tr><td><strong>Separators</strong></td><td>Around finders</td><td>1-module white border separating finders from data</td></tr>
+      <tr><td><strong>Timing Patterns</strong></td><td>Row 6 & Column 6</td><td>Alternating black/white; calibrates module grid</td></tr>
+      ${version>=2?`<tr><td><strong>Alignment Patterns</strong></td><td>Version-dependent centers: ${ALIGN_POS[version].join(',')}</td><td>5×5 patterns; help correct distortion in larger codes</td></tr>`:''}
+      <tr><td><strong>Dark Module</strong></td><td>(${4*version+9}, 8)</td><td>Always dark; part of format info area</td></tr>
+      <tr><td><strong>Format Info Areas</strong></td><td>Around finders</td><td>15-bit string encoding EC level + mask (placed in step 8)</td></tr>
+    </tbody></table>
+    <h3>QR Skeleton — Version ${version} (${size}×${size})</h3>
+    ${legend}
+    <div class="qr-table-wrap">${renderMatrix(skeleton,version)}</div>
+  `;
+}
+
+function renderStep7(){
+  const {version,withData,skeleton,finalCW}=STATE;
+  const size=4*version+17;
+  const modules=getDataModules(skeleton,version);
+
+  // Create a numbered highlight map for first 30 modules
+  let bits='';
+  for(const cw of finalCW) bits+=toBin(cw,8);
+  const showN=Math.min(60,modules.length);
+
+  let highlight={};
+  for(let i=0;i<showN;i++){
+    const [r,c]=modules[i];
+    if(!highlight[r]) highlight[r]={};
+    highlight[r][c]=i;
+  }
+
+  let bitTable='<table class="data-table" style="font-size:0.8rem"><thead><tr><th>#</th><th>Row</th><th>Col</th><th>Bit</th><th>Color</th></tr></thead><tbody>';
+  for(let i=0;i<Math.min(20,modules.length);i++){
+    const [r,c]=modules[i];
+    const bit=i<bits.length?bits[i]:'0';
+    bitTable+=`<tr><td>${i}</td><td>${r}</td><td>${c}</td><td class="mono">${bit}</td><td>${bit==='1'?'Dark':'Light'}</td></tr>`;
+  }
+  bitTable+=`<tr><td colspan="5" style="text-align:center;color:#666">… ${modules.length} total data modules …</td></tr>`;
+  bitTable+='</tbody></table>';
+
+  return `
+    <p>Data bits are placed into the <strong>data area modules</strong> in a specific zigzag order. The algorithm reads the matrix in 2-column strips, alternating upward and downward, skipping column 6 (timing).</p>
+    <h3>Zigzag Placement Rules</h3>
+    <ul style="margin:10px 0 10px 20px;font-size:0.9rem">
+      <li>Start at bottom-right, move in 2-column strips leftward</li>
+      <li>Within each strip: fill right column first, then left column</li>
+      <li>Alternate direction (up/down) at each strip boundary</li>
+      <li>Skip column 6 entirely (timing pattern column)</li>
+      <li>If a module is reserved (functional pattern), skip it</li>
+    </ul>
+    <h3>First 20 Data Module Placements</h3>
+    ${bitTable}
+    <h3>Matrix with Data Placed (before masking)</h3>
+    <p style="font-size:0.85rem;color:#555">Gray = format info reserved &nbsp;|&nbsp; Blue = data area (unset)</p>
+    <div class="qr-table-wrap">${renderMatrix(withData,version)}</div>
+    <p style="font-size:0.85rem;color:#555;margin-top:8px">Total data modules: <strong>${modules.length}</strong> &nbsp;|&nbsp; Data bits available: <strong>${finalCW.length*8}</strong></p>
+  `;
+}
+
+function renderStep8(){
+  const {version,ec,maskMatrices,penalties,bestMask,withData,skeleton}=STATE;
+  const maxPen=Math.max(...penalties.map(p=>p.total));
+
+  // Small mask previews
+  let maskGrid='<div class="mask-grid">';
+  for(let mi=0;mi<8;mi++){
+    const pen=penalties[mi];
+    const isWinner=mi===bestMask;
+    maskGrid+=`<div class="mask-item${isWinner?' winner-mask':''}">
+      <div>${renderSmallMatrix(maskMatrices[mi],version)}</div>
+      <p>Mask ${mi}: ${MASK_FORMULAS[mi]}</p>
+      <p style="color:${isWinner?'#16a34a':'#333'}">Score: ${pen.total}${isWinner?' ✓ WINNER':''}</p>
+    </div>`;
+  }
+  maskGrid+='</div>';
+
+  // Penalty breakdown for winner
+  const wp=penalties[bestMask];
+
+  let penBar='<div class="penalty-bars">';
+  for(let mi=0;mi<8;mi++){
+    const p=penalties[mi];
+    const pct=maxPen>0?Math.round(p.total/maxPen*100):0;
+    penBar+=`<div class="penalty-row">
+      <span class="penalty-label">Mask ${mi}</span>
+      <div class="penalty-bar-bg"><div class="penalty-bar-fill${mi===bestMask?' winner':''}" style="width:${pct}%"></div></div>
+      <span class="penalty-val">${p.total}</span>
+    </div>`;
+  }
+  penBar+='</div>';
+
+  const fmtInfo=calcFormatInfo(ec,bestMask);
+  const ecBits=EC_LEVEL_BITS[ec];
+  const formatRaw=((ecBits<<3)|bestMask).toString(2).padStart(5,'0');
+
+  return `
+    <p>Masking prevents large uniform regions (all-black or all-white) which confuse scanners. We test all 8 mask patterns, score each with a penalty function, and pick the lowest score.</p>
+    <h3>8 Mask Patterns</h3>
+    ${maskGrid}
+    <h3>Penalty Score Comparison</h3>
+    ${penBar}
+    <h3>Penalty Rules (for winner — Mask ${bestMask})</h3>
+    <table class="data-table" style="font-size:0.85rem"><thead><tr><th>Rule</th><th>Description</th><th>Score</th></tr></thead><tbody>
+      <tr><td>Rule 1</td><td>5+ consecutive same-color in row/col: 3 + (run−5)</td><td>${wp.p1}</td></tr>
+      <tr><td>Rule 2</td><td>2×2 same-color blocks: 3 each</td><td>${wp.p2}</td></tr>
+      <tr><td>Rule 3</td><td>Finder-like 1:1:3:1:1 patterns: 40 each</td><td>${wp.p3}</td></tr>
+      <tr><td>Rule 4</td><td>Dark/light ratio deviation from 50%: 10 × steps</td><td>${wp.p4}</td></tr>
+      <tr class="highlight"><td colspan="2"><strong>Total</strong></td><td><strong>${wp.total}</strong></td></tr>
+    </tbody></table>
+    <h3>Format Information String</h3>
+    <p>The 15-bit format string encodes EC level + mask pattern, protected by BCH error correction:</p>
+    <table class="data-table" style="font-size:0.85rem"><tbody>
+      <tr><td>EC level bits (${ec})</td><td class="mono bit-mode">${ecBits.toString(2).padStart(2,'0')}</td></tr>
+      <tr><td>Mask pattern bits</td><td class="mono bit-count">${bestMask.toString(2).padStart(3,'0')}</td></tr>
+      <tr><td>Raw 5-bit data</td><td class="mono">${formatRaw}</td></tr>
+      <tr><td>BCH error correction (10 bits)</td><td class="mono">${(fmtInfo^0x5412).toString(2).padStart(15,'0').slice(5)}</td></tr>
+      <tr><td>XOR mask 101010000010010</td><td class="mono">101010000010010</td></tr>
+      <tr><td><strong>Final format string (15 bits)</strong></td><td class="mono"><strong>${fmtInfo.toString(2).padStart(15,'0')}</strong></td></tr>
+    </tbody></table>
+  `;
+}
+
+function renderSmallMatrix(mat,version){
+  const size=4*version+17;
+  let html='<table class="qr-small">';
+  for(let r=0;r<size;r++){
+    html+='<tr>';
+    for(let c=0;c<size;c++){
+      const v=mat[r][c];
+      let cls='qm-light';
+      if(v===1) cls='qm-dark';
+      else if(v===-1) cls='qm-gray';
+      html+=`<td class="${cls}"></td>`;
+    }
+    html+='</tr>';
+  }
+  html+='</table>';
+  return html;
+}
+
+function renderStep9(){
+  const {finalMatrix,version}=STATE;
+  return `
+    <p>The final QR code combines the masked data with format information placed in the reserved areas. A <strong>quiet zone</strong> of 4 white modules surrounds the code — this is required for scanners.</p>
+    <div class="ok-box">
+      <strong>Version ${version} QR Code — fully encoded and ready to scan!</strong><br>
+      Size: ${4*version+17}×${4*version+17} modules (+ 4-module quiet zone on each side = ${4*version+17+8}×${4*version+17+8} total)
+    </div>
+    <h3>Final QR Code</h3>
+    <div class="qr-table-wrap" style="background:#fff;padding:16px;display:inline-block;border-radius:8px;border:2px solid #e0e8f0">
+      ${renderFinalMatrix(finalMatrix,version)}
+    </div>
+    <p style="margin-top:14px;font-size:0.9rem;color:#555">
+      This QR code was generated entirely in JavaScript using the standard QR code specification (ISO/IEC 18004).
+      Try scanning it with your phone's camera — it should decode correctly.
+    </p>
+
+    <div class="print-section">
+      <h3 style="font-size:1.1rem;margin-bottom:6px">Bonus: 3D Printable QR Code</h3>
+      <p>Download an STL file for this exact QR code and print it on any FDM 3D printer using a mid-print filament swap — white base, black raised modules.</p>
+
+      <h3>Model Geometry</h3>
+      <div class="print-params">
+        <div class="param-box"><strong>Module size</strong>2.0 mm × 2.0 mm</div>
+        <div class="param-box"><strong>Base (white)</strong>1.6 mm thick</div>
+        <div class="param-box"><strong>Pillars (black)</strong>0.4 mm tall</div>
+        <div class="param-box"><strong>Total height</strong>2.0 mm</div>
+        <div class="param-box"><strong>Footprint</strong>${(()=>{const s=4*version+17+8;return (s*2)+'×'+(s*2)})()} mm (incl. quiet zone)</div>
+        <div class="param-box"><strong>Filament change at</strong>z = 1.6 mm</div>
+      </div>
+      <p style="font-size:0.88rem;color:#555">
+        The STL contains one solid white base slab plus individual raised pillars for every dark module.
+        When sliced, the base prints entirely in white; the pillars print as a separate thin layer in black.
+      </p>
+
+      <button class="btn-stl" onclick="downloadSTL()">
+        ⬇ Download STL  (qr-code-3d.stl)
+      </button>
+
+      <h3 style="margin-top:22px">How to Print (Single Extruder)</h3>
+      <ol class="print-steps">
+        <li>Slice <code>qr-code-3d.stl</code> in your slicer (PrusaSlicer, Cura, Bambu Studio, etc.) with your usual profile. <strong>0.2 mm layer height</strong> works well.</li>
+        <li>Insert a <strong>filament change (M600)</strong> or <strong>color change</strong> pause at exactly <strong>z = 1.6 mm</strong> (= layer 9 at 0.2 mm, or layer 5 at 0.4 mm layer height). In PrusaSlicer: <em>Printer Settings → Custom G-code</em> or right-click a layer in the preview. In Cura: use the <em>Pause at Height</em> post-processing plugin.</li>
+        <li>Load <strong>white (or light-coloured) filament</strong> first and start the print.</li>
+        <li>When the printer pauses at 1.6 mm, swap to <strong>black (or dark-coloured) filament</strong> and resume. The printer will now print only the raised module pillars.</li>
+        <li>After printing, the dark pillars stand 0.4 mm above the white base — the contrast makes the QR code scannable. Verify with your phone before removing from the bed.</li>
+      </ol>
+
+      <div class="info-box" style="margin-top:12px;font-size:0.88rem">
+        <strong>Tips:</strong> Use PLA for easiest printing. Ensure the bed is level and the first layer adheres well — the pillar footprints are small (2×2 mm). A brim can help on larger versions. The quiet zone (4-module white border) is included in the model and is essential for scanning.
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// STEP MANAGEMENT & DOM RENDERING
+// ============================================================
+const STEPS=[
+  {title:'Character Analysis & Mode Selection',subtitle:'Determine the most efficient encoding mode'},
+  {title:'Binary Encoding',subtitle:'Convert input to a bit stream'},
+  {title:'Version & Error Correction Selection',subtitle:'Choose the smallest QR version that fits'},
+  {title:'Padding & Codewords',subtitle:'Fill to exact capacity with pad bytes'},
+  {title:'Reed-Solomon Error Correction',subtitle:'Generate error correction codewords'},
+  {title:'QR Code Skeleton — Functional Patterns',subtitle:'Place finder, timing, and alignment patterns'},
+  {title:'Data Placement — Zigzag Order',subtitle:'Write data bits into the matrix'},
+  {title:'Masking',subtitle:'Apply optimal mask to improve readability'},
+  {title:'Final QR Code',subtitle:'Complete, scannable QR code with quiet zone'}
+];
+
+const RENDERERS=[
+  renderStep1,renderStep2,renderStep3,renderStep4,
+  renderStep5,renderStep6,renderStep7,renderStep8,renderStep9
+];
+
+function renderAllSteps(){
+  const container=document.getElementById('steps-container');
+  container.innerHTML='';
+
+  // Show final QR code at the top
+  const topQr=document.getElementById('top-qr');
+  topQr.innerHTML=`<div class="step-card">
+    <div class="step-header">
+      <div class="step-badge" style="background:#16a34a">✓</div>
+      <div>
+        <div class="step-title">Your QR Code</div>
+        <div class="step-subtitle">Scannable result — generated from "${escapeHtml(STATE.text)}"</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="qr-table-wrap" style="background:#fff;padding:16px;display:inline-block;border-radius:8px;border:2px solid #e0e8f0">
+        ${renderFinalMatrix(STATE.finalMatrix,STATE.version)}
+      </div>
+      <p style="margin-top:10px;font-size:0.88rem;color:#555">Version ${STATE.version} &nbsp;|&nbsp; ${4*STATE.version+17}×${4*STATE.version+17} modules &nbsp;|&nbsp; EC level ${STATE.ec} &nbsp;|&nbsp; Mode: ${STATE.mode}</p>
+    </div>
+  </div>
+  <hr class="step-divider">`;
+
+  for(let i=0;i<STEPS.length;i++){
+    const card=document.createElement('div');
+    card.className='step-card';
+
+    const s=STEPS[i];
+    card.innerHTML=`
+      <div class="step-header">
+        <div class="step-badge">${i+1}</div>
+        <div>
+          <div class="step-title">${s.title}</div>
+          <div class="step-subtitle">${s.subtitle}</div>
+        </div>
+      </div>
+      <div class="step-body">
+        ${RENDERERS[i]()}
+      </div>
+    `;
+    container.appendChild(card);
+
+    // Add divider between steps (not after the last one)
+    if(i<STEPS.length-1){
+      const hr=document.createElement('hr');
+      hr.className='step-divider';
+      container.appendChild(hr);
+    }
+  }
+
+  // Scroll to top QR code
+  topQr.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ============================================================
+// 3D STL GENERATION
+// ============================================================
+// Geometry: flat base slab (1.6 mm) + raised pillars (0.4 mm) for dark modules.
+// The filament change happens at z = 1.6 mm (end of base).
+// Binary STL: 80-byte header | uint32 triangle count | N × 50-byte triangles.
+// Each triangle: 3×float32 normal | 3×3×float32 vertices | uint16 attribute.
+// Each box = 6 faces × 2 triangles = 12 triangles.
+function generateSTL(){
+  const {finalMatrix,version}=STATE;
+  const qrSize=4*version+17;
+  const quietZone=4;
+  const totalMod=qrSize+2*quietZone;
+  const modSize=2.0;   // mm per module grid unit
+  const baseH=1.6;     // mm — print white up to here, then change filament
+  const raiseH=0.4;    // mm — dark module pillar height above base
+
+  const W=totalMod*modSize;
+
+  // Collect boxes {x,y,z,w,d,h}
+  const boxes=[];
+  boxes.push({x:0,y:0,z:0,w:W,d:W,h:baseH}); // base slab
+  for(let r=0;r<qrSize;r++){
+    for(let c=0;c<qrSize;c++){
+      if(finalMatrix[r][c]===1){
+        boxes.push({
+          x:(c+quietZone)*modSize,
+          y:(r+quietZone)*modSize,
+          z:baseH,
+          w:modSize,d:modSize,h:raiseH
+        });
+      }
+    }
+  }
+
+  const nTri=boxes.length*12;
+  const buf=new ArrayBuffer(84+nTri*50);
+  const dv=new DataView(buf);
+
+  // Header (80 bytes)
+  const hdr='QR Code 3D Model — generated by QR Code Educational Tool';
+  for(let i=0;i<80;i++) dv.setUint8(i,i<hdr.length?hdr.charCodeAt(i):0);
+  dv.setUint32(80,nTri,true);
+
+  let off=84;
+  function tri(nx,ny,nz,v1,v2,v3){
+    dv.setFloat32(off,nx,true);off+=4;
+    dv.setFloat32(off,ny,true);off+=4;
+    dv.setFloat32(off,nz,true);off+=4;
+    for(const v of [v1,v2,v3]){
+      dv.setFloat32(off,v[0],true);off+=4;
+      dv.setFloat32(off,v[1],true);off+=4;
+      dv.setFloat32(off,v[2],true);off+=4;
+    }
+    dv.setUint16(off,0,true);off+=2;
+  }
+
+  for(const b of boxes){
+    const {x,y,z,w,d,h}=b;
+    const B0=[x,y,z],B1=[x+w,y,z],B2=[x+w,y+d,z],B3=[x,y+d,z];
+    const T0=[x,y,z+h],T1=[x+w,y,z+h],T2=[x+w,y+d,z+h],T3=[x,y+d,z+h];
+    tri( 0, 0,-1, B0,B2,B1); tri( 0, 0,-1, B0,B3,B2); // bottom
+    tri( 0, 0, 1, T0,T1,T2); tri( 0, 0, 1, T0,T2,T3); // top
+    tri( 0,-1, 0, B0,T1,T0); tri( 0,-1, 0, B0,B1,T1); // front
+    tri( 0, 1, 0, B2,B3,T3); tri( 0, 1, 0, B2,T3,T2); // back
+    tri(-1, 0, 0, B3,B0,T0); tri(-1, 0, 0, B3,T0,T3); // left
+    tri( 1, 0, 0, B1,T2,T1); tri( 1, 0, 0, B1,B2,T2); // right
+  }
+  return buf;
+}
+
+function downloadSTL(){
+  const buf=generateSTL();
+  const blob=new Blob([buf],{type:'application/octet-stream'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='qr-code-3d.stl'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Auto-generate on load with default values
+window.addEventListener('load',()=>{
+  startGeneration();
+});
+</script>
+</body>
+</html>
