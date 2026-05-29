@@ -21,6 +21,8 @@ header p{margin-top:6px;font-size:0.95rem;opacity:0.8;font-style:italic}
 .form-group select{padding:10px 14px;border:2px solid #ccd6e0;border-radius:6px;font-size:1rem;background:#fff;cursor:pointer}
 .btn-generate{padding:11px 28px;background:#1a6b9a;color:#fff;border:none;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;transition:background 0.2s;white-space:nowrap}
 .btn-generate:hover{background:#145a82}
+.btn-jump{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:8px 18px;background:#1a6b9a;color:#fff;border:none;border-radius:6px;font-size:0.9rem;font-weight:700;cursor:pointer;transition:background 0.2s}
+.btn-jump:hover{background:#145a82}
 .step-card{background:#fff;border-radius:10px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.1);margin-bottom:22px}
 .step-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #e0e8f0}
 .step-badge{background:#0d1b2a;color:#e8f4fd;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0}
@@ -79,6 +81,8 @@ table.qr-small td{width:4px;height:4px;padding:0;border:none}
 .print-params{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
 .param-box{background:#f8fafc;border:1px solid #ccd6e0;border-radius:6px;padding:10px 16px;font-size:0.88rem}
 .param-box strong{display:block;font-size:0.78rem;text-transform:uppercase;color:#666;margin-bottom:3px}
+.param-box input{width:64px;padding:3px 6px;border:1px solid #ccd6e0;border-radius:3px;font-family:inherit;font-size:0.88rem;background:#fff}
+.param-box input:focus{outline:none;border-color:#1a6b9a}
 .btn-stl{display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:12px 28px;background:#0d1b2a;color:#e8f4fd;border:none;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;transition:background 0.2s}
 .btn-stl:hover{background:#1a3a55}
 .print-steps{counter-reset:pstep;list-style:none;margin:12px 0;padding:0}
@@ -118,6 +122,10 @@ table.qr-small td{width:4px;height:4px;padding:0;border:none}
 
 <script>
 'use strict';
+
+// User-adjustable 3D-print geometry (defaults match the original hard-coded STL values).
+// Persists across re-generations of the QR so users don't lose their print settings.
+let GEOMETRY = { modSize: 2.0, baseH: 1.6, raiseH: 0.4 };
 
 function escapeHtml(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
@@ -1229,18 +1237,18 @@ function renderStep9(){
       Try scanning it with your phone's camera — it should decode correctly.
     </p>
 
-    <div class="print-section">
+    <div class="print-section" id="print-section">
       <h3 style="font-size:1.1rem;margin-bottom:6px">Bonus: 3D Printable QR Code</h3>
-      <p>Download an STL file for this exact QR code and print it on any FDM 3D printer using a mid-print filament swap — white base, black raised modules.</p>
+      <p>Download an STL file for this exact QR code and print it on any FDM 3D printer using a mid-print filament swap — white base, black raised modules. <em>Edit any of the three input fields below to customise the model; the derived values, the printing instructions and the downloaded STL update automatically.</em></p>
 
       <h3>Model Geometry</h3>
       <div class="print-params">
-        <div class="param-box"><strong>Module size</strong>2.0 mm × 2.0 mm</div>
-        <div class="param-box"><strong>Base (white)</strong>1.6 mm thick</div>
-        <div class="param-box"><strong>Pillars (black)</strong>0.4 mm tall</div>
-        <div class="param-box"><strong>Total height</strong>2.0 mm</div>
-        <div class="param-box"><strong>Footprint</strong>${(()=>{const s=4*version+17+8;return (s*2)+'×'+(s*2)})()} mm (incl. quiet zone)</div>
-        <div class="param-box"><strong>Filament change at</strong>z = 1.6 mm</div>
+        <div class="param-box"><strong>Module size</strong><input type="number" step="0.1" min="0.5" value="${GEOMETRY.modSize}" onchange="setGeometry('modSize', this.value)"> mm (square)</div>
+        <div class="param-box"><strong>Base (white)</strong><input type="number" step="0.1" min="0.2" value="${GEOMETRY.baseH}" onchange="setGeometry('baseH', this.value)"> mm thick</div>
+        <div class="param-box"><strong>Pillars (black)</strong><input type="number" step="0.1" min="0.1" value="${GEOMETRY.raiseH}" onchange="setGeometry('raiseH', this.value)"> mm tall</div>
+        <div class="param-box"><strong>Total height</strong><span id="geo-totalH">${(GEOMETRY.baseH+GEOMETRY.raiseH).toFixed(2)} mm</span></div>
+        <div class="param-box"><strong>Footprint</strong><span id="geo-footprint">${(((4*version+17+8)*GEOMETRY.modSize).toFixed(1))}×${(((4*version+17+8)*GEOMETRY.modSize).toFixed(1))} mm (incl. quiet zone)</span></div>
+        <div class="param-box"><strong>Filament change at</strong><span id="geo-filchange">z = ${GEOMETRY.baseH.toFixed(2)} mm</span></div>
       </div>
       <p style="font-size:0.88rem;color:#555">
         The STL contains one solid white base slab plus individual raised pillars for every dark module.
@@ -1254,10 +1262,10 @@ function renderStep9(){
       <h3 style="margin-top:22px">How to Print (Single Extruder)</h3>
       <ol class="print-steps">
         <li>Slice <code>qr-code-3d.stl</code> in your slicer (PrusaSlicer, Cura, Bambu Studio, etc.) with your usual profile. <strong>0.2 mm layer height</strong> works well.</li>
-        <li>Insert a <strong>filament change (M600)</strong> or <strong>color change</strong> pause at exactly <strong>z = 1.6 mm</strong> (= layer 9 at 0.2 mm, or layer 5 at 0.4 mm layer height). In PrusaSlicer: <em>Printer Settings → Custom G-code</em> or right-click a layer in the preview. In Cura: use the <em>Pause at Height</em> post-processing plugin.</li>
+        <li>Insert a <strong>filament change (M600)</strong> or <strong>color change</strong> pause at exactly <strong>z = <span id="geo-swap">${GEOMETRY.baseH.toFixed(2)}</span> mm</strong> (the slicer will tell you the corresponding layer number once you've chosen a layer height). In PrusaSlicer: <em>Printer Settings → Custom G-code</em> or right-click a layer in the preview. In Cura: use the <em>Pause at Height</em> post-processing plugin.</li>
         <li>Load <strong>white (or light-coloured) filament</strong> first and start the print.</li>
-        <li>When the printer pauses at 1.6 mm, swap to <strong>black (or dark-coloured) filament</strong> and resume. The printer will now print only the raised module pillars.</li>
-        <li>After printing, the dark pillars stand 0.4 mm above the white base — the contrast makes the QR code scannable. Verify with your phone before removing from the bed.</li>
+        <li>When the printer pauses at <span id="geo-swap2">${GEOMETRY.baseH.toFixed(2)}</span> mm, swap to <strong>black (or dark-coloured) filament</strong> and resume. The printer will now print only the raised module pillars.</li>
+        <li>After printing, the dark pillars stand <span id="geo-pillarH">${GEOMETRY.raiseH.toFixed(2)}</span> mm above the white base — the contrast makes the QR code scannable. Verify with your phone before removing from the bed.</li>
       </ol>
 
       <div class="info-box" style="margin-top:12px;font-size:0.88rem">
@@ -1306,6 +1314,7 @@ function renderAllSteps(){
         ${renderFinalMatrix(STATE.finalMatrix,STATE.version)}
       </div>
       <p style="margin-top:10px;font-size:0.88rem;color:#555">Version ${STATE.version} &nbsp;|&nbsp; ${4*STATE.version+17}×${4*STATE.version+17} modules &nbsp;|&nbsp; EC level ${STATE.ec} &nbsp;|&nbsp; Mode: ${STATE.mode}</p>
+      <button class="btn-jump" onclick="document.getElementById('print-section').scrollIntoView({behavior:'smooth',block:'start'})" title="Jump to the 3D-printable STL generator at the bottom of the page">⬇ 3D print</button>
     </div>
   </div>
   <hr class="step-divider">`;
@@ -1344,8 +1353,9 @@ function renderAllSteps(){
 // ============================================================
 // 3D STL GENERATION
 // ============================================================
-// Geometry: flat base slab (1.6 mm) + raised pillars (0.4 mm) for dark modules.
-// The filament change happens at z = 1.6 mm (end of base).
+// Geometry: flat base slab + raised pillars for dark modules; both heights and the
+// module footprint come from the user-editable GEOMETRY object. Filament change
+// happens at z = GEOMETRY.baseH (end of base).
 // Binary STL: 80-byte header | uint32 triangle count | N × 50-byte triangles.
 // Each triangle: 3×float32 normal | 3×3×float32 vertices | uint16 attribute.
 // Each box = 6 faces × 2 triangles = 12 triangles.
@@ -1354,9 +1364,9 @@ function generateSTL(){
   const qrSize=4*version+17;
   const quietZone=4;
   const totalMod=qrSize+2*quietZone;
-  const modSize=2.0;   // mm per module grid unit
-  const baseH=1.6;     // mm — print white up to here, then change filament
-  const raiseH=0.4;    // mm — dark module pillar height above base
+  const modSize=GEOMETRY.modSize;   // mm per module grid unit (user-editable)
+  const baseH=GEOMETRY.baseH;       // mm — print white up to here, then change filament
+  const raiseH=GEOMETRY.raiseH;     // mm — dark module pillar height above base
 
   const W=totalMod*modSize;
 
@@ -1410,6 +1420,32 @@ function generateSTL(){
     tri( 1, 0, 0, B1,T2,T1); tri( 1, 0, 0, B1,B2,T2); // right
   }
   return buf;
+}
+
+function setGeometry(key, val){
+  const v = parseFloat(val);
+  if(!isNaN(v) && v > 0) GEOMETRY[key] = v;
+  updateGeometryDerived();
+}
+
+function updateGeometryDerived(){
+  if(!STATE || !STATE.version) return;
+  const totalMod = (4*STATE.version+17) + 8;          // include quiet zone
+  const footprint = (totalMod * GEOMETRY.modSize).toFixed(1);
+  const totalH    = (GEOMETRY.baseH + GEOMETRY.raiseH).toFixed(2);
+  const swap      = GEOMETRY.baseH.toFixed(2);
+  const fp = document.getElementById('geo-footprint');
+  const th = document.getElementById('geo-totalH');
+  const fc = document.getElementById('geo-filchange');
+  const sw = document.getElementById('geo-swap');
+  if(fp) fp.textContent = footprint + '×' + footprint + ' mm (incl. quiet zone)';
+  if(th) th.textContent = totalH + ' mm';
+  if(fc) fc.textContent = 'z = ' + swap + ' mm';
+  if(sw) sw.textContent = swap;
+  const sw2 = document.getElementById('geo-swap2');
+  const ph  = document.getElementById('geo-pillarH');
+  if(sw2) sw2.textContent = swap;
+  if(ph)  ph.textContent  = GEOMETRY.raiseH.toFixed(2);
 }
 
 function downloadSTL(){
