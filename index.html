@@ -77,7 +77,6 @@ table.qr-small td{width:4px;height:4px;padding:0;border:none}
 .chip-byte{background:#fee2e2;color:#991b1b}
 .step-divider{border:none;border-top:2px dashed #c8d8e8;margin:32px 0}
 .quiet-zone td{background:#fff}
-.print-section{margin-top:28px;padding-top:22px;border-top:2px dashed #c8d8e8}
 .print-params{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
 .param-box{background:#f8fafc;border:1px solid #ccd6e0;border-radius:6px;padding:10px 16px;font-size:0.88rem}
 .param-box strong{display:block;font-size:0.78rem;text-transform:uppercase;color:#666;margin-bottom:3px}
@@ -1236,42 +1235,42 @@ function renderStep9(){
       This QR code was generated entirely in JavaScript using the standard QR code specification (ISO/IEC 18004).
       Try scanning it with your phone's camera — it should decode correctly.
     </p>
+  `;
+}
 
-    <div class="print-section" id="print-section">
-      <h3 style="font-size:1.1rem;margin-bottom:6px">Bonus: 3D Printable QR Code</h3>
-      <p>Download an STL file for this exact QR code and print it on any FDM 3D printer using a mid-print filament swap — white base, black raised modules. <em>Edit any of the three input fields below to customise the model; the derived values, the printing instructions and the downloaded STL update automatically.</em></p>
+// Bonus card: 3D-print / STL generator. Rendered as its own standalone card
+// in renderAllSteps (peer of the 9 step cards), not nested inside step 9.
+function renderPrintSection(){
+  const {version}=STATE;
+  return `
+    <p>Download an STL file for this exact QR code and print it on any FDM 3D printer using a mid-print filament swap — white base, black raised modules. <em>Edit any of the three input fields below to customise the model; the derived values, the printing instructions and the downloaded STL update automatically.</em></p>
 
-      <h3>Model Geometry</h3>
-      <div class="print-params">
-        <div class="param-box"><strong>Module size</strong><input type="number" step="0.1" min="0.5" value="${GEOMETRY.modSize}" onchange="setGeometry('modSize', this.value)"> mm (square)</div>
-        <div class="param-box"><strong>Base (white)</strong><input type="number" step="0.1" min="0.2" value="${GEOMETRY.baseH}" onchange="setGeometry('baseH', this.value)"> mm thick</div>
-        <div class="param-box"><strong>Pillars (black)</strong><input type="number" step="0.1" min="0.1" value="${GEOMETRY.raiseH}" onchange="setGeometry('raiseH', this.value)"> mm tall</div>
-        <div class="param-box"><strong>Total height</strong><span id="geo-totalH">${(GEOMETRY.baseH+GEOMETRY.raiseH).toFixed(2)} mm</span></div>
-        <div class="param-box"><strong>Footprint</strong><span id="geo-footprint">${(((4*version+17+8)*GEOMETRY.modSize).toFixed(1))}×${(((4*version+17+8)*GEOMETRY.modSize).toFixed(1))} mm (incl. quiet zone)</span></div>
-        <div class="param-box"><strong>Filament change at</strong><span id="geo-filchange">z = ${GEOMETRY.baseH.toFixed(2)} mm</span></div>
-      </div>
-      <p style="font-size:0.88rem;color:#555">
-        The STL contains one solid white base slab plus individual raised pillars for every dark module.
-        When sliced, the base prints entirely in white; the pillars print as a separate thin layer in black.
-      </p>
-
-      <button class="btn-stl" onclick="downloadSTL()">
-        ⬇ Download STL  (qr-code-3d.stl)
-      </button>
-
-      <h3 style="margin-top:22px">How to Print (Single Extruder)</h3>
-      <ol class="print-steps">
-        <li>Slice <code>qr-code-3d.stl</code> in your slicer (PrusaSlicer, Cura, Bambu Studio, etc.) with your usual profile. <strong>0.2 mm layer height</strong> works well.</li>
-        <li>Insert a <strong>filament change (M600)</strong> or <strong>color change</strong> pause at exactly <strong>z = <span id="geo-swap">${GEOMETRY.baseH.toFixed(2)}</span> mm</strong> (the slicer will tell you the corresponding layer number once you've chosen a layer height). In PrusaSlicer: <em>Printer Settings → Custom G-code</em> or right-click a layer in the preview. In Cura: use the <em>Pause at Height</em> post-processing plugin.</li>
-        <li>Load <strong>white (or light-coloured) filament</strong> first and start the print.</li>
-        <li>When the printer pauses at <span id="geo-swap2">${GEOMETRY.baseH.toFixed(2)}</span> mm, swap to <strong>black (or dark-coloured) filament</strong> and resume. The printer will now print only the raised module pillars.</li>
-        <li>After printing, the dark pillars stand <span id="geo-pillarH">${GEOMETRY.raiseH.toFixed(2)}</span> mm above the white base — the contrast makes the QR code scannable. Verify with your phone before removing from the bed.</li>
-      </ol>
-
-      <div class="info-box" style="margin-top:12px;font-size:0.88rem">
-        <strong>Tips:</strong> Use PLA for easiest printing. Ensure the bed is level and the first layer adheres well — the pillar footprints are small (2×2 mm). A brim can help on larger versions. The quiet zone (4-module white border) is included in the model and is essential for scanning.
-      </div>
+    <h3>Model Geometry</h3>
+    <div class="print-params">
+      <div class="param-box"><strong>Module size</strong><input type="number" step="0.1" min="0.5" value="${GEOMETRY.modSize}" onchange="setGeometry('modSize', this.value)"> mm (square)</div>
+      <div class="param-box"><strong>Base (white)</strong><input type="number" step="0.1" min="0.2" value="${GEOMETRY.baseH}" onchange="setGeometry('baseH', this.value)"> mm thick</div>
+      <div class="param-box"><strong>Pillars (black)</strong><input type="number" step="0.1" min="0.1" value="${GEOMETRY.raiseH}" onchange="setGeometry('raiseH', this.value)"> mm tall</div>
+      <div class="param-box"><strong>Total height</strong><span id="geo-totalH">${(GEOMETRY.baseH+GEOMETRY.raiseH).toFixed(2)} mm</span></div>
+      <div class="param-box"><strong>Footprint</strong><span id="geo-footprint">${(((4*version+17+8)*GEOMETRY.modSize).toFixed(1))}×${(((4*version+17+8)*GEOMETRY.modSize).toFixed(1))} mm (incl. quiet zone)</span></div>
+      <div class="param-box"><strong>Filament change at</strong><span id="geo-filchange">z = ${GEOMETRY.baseH.toFixed(2)} mm</span></div>
     </div>
+    <p style="font-size:0.88rem;color:#555">
+      The STL contains one solid white base slab plus individual raised pillars for every dark module.
+      When sliced, the base prints entirely in white; the pillars print as a separate thin layer in black.
+    </p>
+
+    <button class="btn-stl" onclick="downloadSTL()">
+      ⬇ Download STL  (qr-code-3d.stl)
+    </button>
+
+    <h3 style="margin-top:22px">How to Print (Single Extruder)</h3>
+    <ol class="print-steps">
+      <li>Slice <code>qr-code-3d.stl</code> in your slicer (PrusaSlicer, Cura, Bambu Studio, etc.) with your usual profile. <strong>0.2 mm layer height</strong> works well.</li>
+      <li>Insert a <strong>filament change (M600)</strong> or <strong>color change</strong> pause at exactly <strong>z = <span id="geo-swap">${GEOMETRY.baseH.toFixed(2)}</span> mm</strong> (the slicer will tell you the corresponding layer number once you've chosen a layer height). In PrusaSlicer: <em>Printer Settings → Custom G-code</em> or right-click a layer in the preview. In Cura: use the <em>Pause at Height</em> post-processing plugin.</li>
+      <li>Load <strong>white (or light-coloured) filament</strong> first and start the print.</li>
+      <li>When the printer pauses at <span id="geo-swap2">${GEOMETRY.baseH.toFixed(2)}</span> mm, swap to <strong>black (or dark-coloured) filament</strong> and resume. The printer will now print only the raised module pillars.</li>
+      <li>After printing, the dark pillars stand <span id="geo-pillarH">${GEOMETRY.raiseH.toFixed(2)}</span> mm above the white base — the contrast makes the QR code scannable. Verify with your phone before removing from the bed.</li>
+    </ol>
   `;
 }
 
@@ -1338,13 +1337,29 @@ function renderAllSteps(){
     `;
     container.appendChild(card);
 
-    // Add divider between steps (not after the last one)
-    if(i<STEPS.length-1){
-      const hr=document.createElement('hr');
-      hr.className='step-divider';
-      container.appendChild(hr);
-    }
+    // Add divider between steps (and before the bonus card)
+    const hr=document.createElement('hr');
+    hr.className='step-divider';
+    container.appendChild(hr);
   }
+
+  // Bonus card: its own peer card with the STL generator, carrying the
+  // #print-section id so the "⬇ 3D print" jump button on the top card lands here.
+  const bonus=document.createElement('div');
+  bonus.className='step-card';
+  bonus.id='print-section';
+  bonus.innerHTML=`
+    <div class="step-header">
+      <div class="step-badge" style="background:#1a6b9a">🖨</div>
+      <div>
+        <div class="step-title">Bonus — 3D Printable QR Code</div>
+        <div class="step-subtitle">Download an STL and print this QR code on any FDM 3D printer</div>
+      </div>
+    </div>
+    <div class="step-body">
+      ${renderPrintSection()}
+    </div>`;
+  container.appendChild(bonus);
 
   // Scroll to top QR code
   topQr.scrollIntoView({behavior:'smooth',block:'start'});
